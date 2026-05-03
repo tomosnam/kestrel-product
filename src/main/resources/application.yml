@@ -1,0 +1,75 @@
+# ============================================================================
+# kestrel-product — Quarkus configuration
+# ----------------------------------------------------------------------------
+# This module owns the product / SKU catalog (currently scaffold). Schema:
+# product.*.
+# Runs on port 8083 in dev.
+# ============================================================================
+
+quarkus:
+  application:
+    # Service identity. Surfaces in logs, metrics, and Quarkus banner.
+    name: kestrel-product
+
+  http:
+    # Module port assignment (see run.sh). Avoids clashes when several
+    # microservices run side-by-side in dev mode on the same host.
+    port: 8083
+
+  datasource:
+    # PostgreSQL is the only supported DB. All modules share one cluster but
+    # each owns a distinct schema. Credentials come from KESTREL_DB_* env
+    # vars loaded from the repo-root .env (with optional module override).
+    db-kind: postgresql
+
+  hibernate-orm:
+    schema-management:
+      # Flyway is the single source of truth for DDL. Hibernate must not
+      # auto-create or alter tables.
+      strategy: none
+    # Hibernate 6 multi-tenant DISCRIMINATOR mode: every tenant-scoped entity
+    # carries an OrganizationId column annotated with @TenantId, populated
+    # from the JWT organization_id claim by OrganizationTenantResolver.
+    multitenant: DISCRIMINATOR
+
+  oidc:
+    # JWT bearer auth via Clerk. application-type=service => no login flow,
+    # just token validation against Clerk's JWKS endpoint.
+    application-type: service
+    roles:
+      # Roles read from the "role" JWT claim, then enforced via
+      # @RolesAllowed using kestrel.security.RoleNames constants.
+      role-claim-path: role
+
+# ============================================================================
+# %dev — local developer machine (./run.sh)
+# Postgres at localhost via Compose; OIDC off so curl/Postman work without
+# a Clerk-signed JWT. Tests use @TestSecurity for synthetic identities.
+# ============================================================================
+'%dev':
+  quarkus:
+    datasource:
+      username: ${KESTREL_DB_USER:kestrel}
+      password: ${KESTREL_DB_PASSWORD}
+      jdbc:
+        url: jdbc:postgresql://${KESTREL_DB_HOST:localhost}:${KESTREL_DB_PORT:5432}/${KESTREL_DB_NAME:kestrel}
+    oidc:
+      enabled: false
+
+# ============================================================================
+# %test — JUnit + RestAssured. OIDC off.
+# ============================================================================
+'%test':
+  quarkus:
+    oidc:
+      enabled: false
+
+# ============================================================================
+# %prod — Clerk-issued JWTs validated against the JWKS endpoint.
+# Secrets come from CI/CD env, never hard-coded.
+# ============================================================================
+'%prod':
+  quarkus:
+    oidc:
+      auth-server-url: ${CLERK_ISSUER_URL}
+      client-id: ${CLERK_CLIENT_ID}
