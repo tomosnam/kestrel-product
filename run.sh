@@ -9,7 +9,7 @@ set -euo pipefail
 # Steps:
 #   1. Verify .env (lives in repo root: kestrel_backend/.env).
 #   2. Load env vars: repo-root/.env first, then optional module-level .env override.
-#   3. Start local PostgreSQL via Compose.
+#   3. Start local PostgresSQL via Compose.
 #   4. Launch Quarkus dev mode on port 8083.
 #
 # -----------------------------------------------------------------------------
